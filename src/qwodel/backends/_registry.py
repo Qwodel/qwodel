@@ -44,6 +44,16 @@ class BackendRegistry:
             BackendNotFoundError: If backend not found
         """
         name_lower = name.lower()
+        
+        # Try to import backend if not registered
+        if name_lower not in cls._backends:
+            try:
+                import importlib
+                importlib.import_module(f"qwodel.backends.{name_lower}")
+            except ImportError:
+                # If import fails, we'll raise BackendNotFoundError below
+                pass
+
         if name_lower not in cls._backends:
             available = list(cls._backends.keys())
             raise BackendNotFoundError(

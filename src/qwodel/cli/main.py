@@ -130,7 +130,7 @@ def quantize(
             output_path = quantizer.quantize(format=format)
         
         # Success message
-        console.print("\n[bold green]✅ Quantization successful![/bold green]")
+        console.print("\n[bold green]Quantization successful![/bold green]")
         console.print(f"Output: [blue]{output_path}[/blue]")
         
         # Get model info
@@ -140,10 +140,10 @@ def quantize(
             console.print(f"Size: [yellow]{size_mb:.2f} MB[/yellow]")
         
     except QuantizationError as e:
-        console.print(f"\n[bold red]❌ Quantization failed:[/bold red] {e}", err=True)
+        console.print(f"\n[bold red]Quantization failed:[/bold red] {e}", err=True)
         raise click.Abort()
     except Exception as e:
-        console.print(f"\n[bold red]❌ Error:[/bold red] {e}", err=True)
+        console.print(f"\n[bold red]Error:[/bold red] {e}", err=True)
         if verbose:
             console.print_exception()
         raise click.Abort()
@@ -200,7 +200,7 @@ def list_backends():
     table.add_column("Status", style="green")
     
     for backend_name in backends:
-        table.add_row(backend_name, "✓ Available")
+        table.add_row(backend_name, "Available")
     
     console.print(table)
     console.print(f"\nTotal: [yellow]{len(backends)}[/yellow] backends\n")

@@ -149,13 +149,11 @@ quantizer.quantize(format="Q4_K_M")
 
 ## Documentation
 
-Full documentation available at: https://qwodel.readthedocs.io
-
-- [Getting Started Guide](docs/getting-started.md)
-- [API Reference](docs/api-reference.md)
-- [Backend Guides](docs/backends/)
-- [Examples](examples/)
-- [Migration from Bekenstein](docs/examples/migration-guide.md)
+- [API Reference](docs/API_REFERENCE.md)
+- [CLI Reference](docs/CLI_REFERENCE.md)
+- [API Reference](docs/API_REFERENCE.md)
+- [CLI Reference](docs/CLI_REFERENCE.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 ## Contributing
 

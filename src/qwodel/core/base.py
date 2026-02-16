@@ -268,11 +268,11 @@ class BaseQuantizer(ABC):
                 )
             
             self._report_progress(100, "complete", "Quantization successful")
-            self.logger.info(f"✅ Quantization successful: {output_path}")
+            self.logger.info(f"Quantization successful: {output_path}")
             return output_path
             
         except Exception as e:
-            self.logger.error(f"❌ Quantization failed: {e}")
+            self.logger.error(f"Quantization failed: {e}")
             raise
     
     def get_model_info(self) -> Dict[str, Any]:

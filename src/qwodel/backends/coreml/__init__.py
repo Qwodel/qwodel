@@ -118,8 +118,8 @@ class CoreMLQuantizer(BaseQuantizer):
                 f"Error: {_COREML_IMPORT_ERROR}"
             )
         
-        self.logger.info(f"✓ coremltools {ct.__version__}")
-        self.logger.info(f"✓ torch {torch.__version__}")
+        self.logger.info(f"coremltools {ct.__version__}")
+        self.logger.info(f"torch {torch.__version__}")
     
     def _load_pytorch_model(self) -> torch.nn.Module:
         """
@@ -158,7 +158,7 @@ class CoreMLQuantizer(BaseQuantizer):
         
         model.eval()
         self._pytorch_model = model
-        self.logger.info(f"✓ Model loaded: {config.model_type}")
+        self.logger.info(f"Model loaded: {config.model_type}")
         return model
     
     def _create_stateless_wrapper(self, model: torch.nn.Module) -> torch.nn.Module:
@@ -189,7 +189,7 @@ class CoreMLQuantizer(BaseQuantizer):
         
         wrapper = StatelessWrapper(model)
         wrapper.eval()
-        self.logger.info("✓ Created stateless model wrapper")
+        self.logger.info("Created stateless model wrapper")
         return wrapper
     
     def _export_model(self, model: torch.nn.Module) -> Any:
@@ -234,7 +234,7 @@ class CoreMLQuantizer(BaseQuantizer):
                 model,
                 args=(example_input_ids, example_attention_mask)
             )
-            self.logger.info("✓ torch.export successful")
+            self.logger.info("torch.export successful")
             self._exported_model = exported
             return exported
         except Exception as e:
@@ -249,7 +249,7 @@ class CoreMLQuantizer(BaseQuantizer):
                     check_trace=False
                 )
             
-            self.logger.info("✓ torch.jit.trace successful")
+            self.logger.info("torch.jit.trace successful")
             self._exported_model = traced
             return traced
     
@@ -295,7 +295,7 @@ class CoreMLQuantizer(BaseQuantizer):
                 **quant_config
             )
             
-            self.logger.info("✓ CoreML conversion successful")
+            self.logger.info("CoreML conversion successful")
             return coreml_model
             
         except Exception as e:
@@ -340,7 +340,7 @@ class CoreMLQuantizer(BaseQuantizer):
                 op_config = OpLinearQuantizerConfig(mode="linear", dtype="int8")
                 config = OptimizationConfig(global_config=op_config)
                 quantized_model = linear_quantize_weights(coreml_model, config=config)
-                self.logger.info("✓ INT8 quantization applied")
+                self.logger.info("INT8 quantization applied")
                 return quantized_model
             except Exception as e:
                 self.logger.warning(f"INT8 quantization failed: {e}")
@@ -353,7 +353,7 @@ class CoreMLQuantizer(BaseQuantizer):
                 op_config = OpPalettizerConfig(mode="kmeans", nbits=4)
                 config = OptimizationConfig(global_config=op_config)
                 quantized_model = palettize_weights(coreml_model, config=config)
-                self.logger.info("✓ INT4 palettization applied")
+                self.logger.info("INT4 palettization applied")
                 return quantized_model
             except Exception as e:
                 self.logger.warning(f"INT4 palettization failed: {e}")
@@ -366,7 +366,7 @@ class CoreMLQuantizer(BaseQuantizer):
                 op_config = OpPalettizerConfig(mode="kmeans", nbits=6)
                 config = OptimizationConfig(global_config=op_config)
                 quantized_model = palettize_weights(coreml_model, config=config)
-                self.logger.info("✓ INT6 palettization applied")
+                self.logger.info("INT6 palettization applied")
                 return quantized_model
             except Exception as e:
                 self.logger.warning(f"INT6 palettization failed: {e}")
@@ -412,7 +412,7 @@ class CoreMLQuantizer(BaseQuantizer):
         # Calculate size
         size_bytes = sum(f.stat().st_size for f in output_path.rglob('*') if f.is_file())
         size_mb = size_bytes / (1024 * 1024)
-        self.logger.info(f"✅ Quantization complete! Size: {size_mb:.2f} MB")
+        self.logger.info(f"Quantization complete! Size: {size_mb:.2f} MB")
     
     def quantize(self, format: str, **kwargs) -> Path:
         """

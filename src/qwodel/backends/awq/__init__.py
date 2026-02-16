@@ -5,6 +5,9 @@ Provides AWQ (Activation-aware Weight Quantization) using llm-compressor.
 Supports GPU-based INT4 quantization with smart VRAM management.
 """
 
+import os
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+
 from typing import Dict, List, Optional
 from pathlib import Path
 import torch
@@ -63,7 +66,12 @@ class AWQQuantizer(BaseQuantizer):
         self,
         model_path: str,
         output_dir: str = "./quantized_models",
-        progress_callback: Optional = None
+        progress_callback: Optional = None,
+        calibration_dataset: str = "mit-han-lab/pile-val-backup",
+        calibration_split: str = "validation",
+        batch_size: Optional[int] = None,
+        seq_length: Optional[int] = None,
+        num_samples: Optional[int] = None
     ):
         """
         Initialize AWQ quantizer.
@@ -72,7 +80,19 @@ class AWQQuantizer(BaseQuantizer):
             model_path: Path to source model (HuggingFace directory)
             output_dir: Output directory for quantized models
             progress_callback: Optional callback(progress: int, stage: str, message: str)
+            calibration_dataset: HuggingFace dataset ID for calibration
+            calibration_split: Dataset split to use (e.g., "train", "validation")
+            batch_size: Manual batch size (overrides smart config)
+            seq_length: Manual sequence length (overrides smart config)
+            num_samples: Manual number of calibration samples (overrides smart config)
         """
+        self.calibration_dataset = calibration_dataset
+        self.calibration_split = calibration_split
+        self.manual_config = {
+            "batch_size": batch_size,
+            "seq_len": seq_length,
+            "samples": num_samples
+        }
         self._current_format = None
         super().__init__(model_path, output_dir, progress_callback)
     
@@ -184,6 +204,17 @@ class AWQQuantizer(BaseQuantizer):
             config = {"batch_size": 16, "seq_len": 8192, "samples": 256}
             mode = "Turbo"
         
+        # Apply manual overrides
+        if self.manual_config["batch_size"]:
+            config["batch_size"] = self.manual_config["batch_size"]
+            mode += " (Custom Batch)"
+        if self.manual_config["seq_len"]:
+            config["seq_len"] = self.manual_config["seq_len"]
+            mode += " (Custom SeqLen)"
+        if self.manual_config["samples"]:
+            config["samples"] = self.manual_config["samples"]
+            mode += " (Custom Samples)"
+        
         self.logger.info(f"Selected Mode: {mode} -> {config}")
         return config
     
@@ -221,8 +252,11 @@ class AWQQuantizer(BaseQuantizer):
         
         # Load calibration dataset
         self._report_progress(25, "preparing", "Loading calibration dataset")
-        self.logger.info("Loading calibration dataset...")
-        dataset = load_dataset("mit-han-lab/pile-val-backup", split="validation")
+        self.logger.info(f"Loading calibration dataset: {self.calibration_dataset} ({self.calibration_split})...")
+        try:
+            dataset = load_dataset(self.calibration_dataset, split=self.calibration_split)
+        except Exception as e:
+            raise QuantizationError(f"Failed to load calibration dataset '{self.calibration_dataset}': {e}")
         
         # Define AWQ recipe
         recipe = [
@@ -254,8 +288,7 @@ class AWQQuantizer(BaseQuantizer):
                     dataset=dataset,
                     recipe=recipe,
                     num_calibration_samples=config['samples'],
-                    max_seq_length=config['seq_len'],
-                    batch_size=config['batch_size']
+                    max_seq_length=config['seq_len']
                 )
                 break  # Success!
                 
@@ -270,13 +303,13 @@ class AWQQuantizer(BaseQuantizer):
                 old_bs = config['batch_size']
                 new_bs = max(1, old_bs // 2)
                 config['batch_size'] = new_bs
-                self.logger.info(f"📉 Reducing batch size: {old_bs} -> {new_bs} and retrying...")
+                self.logger.info(f"Reducing batch size: {old_bs} -> {new_bs} and retrying...")
                 
             except Exception as e:
                 # Check for OOM in generic exception message
                 if "out of memory" in str(e).lower():
                     self.logger.warning(
-                        f"⚠️ CUDA OOM detected (via generic exception) on attempt {attempt+1}!"
+                        f"CUDA OOM detected (via generic exception) on attempt {attempt+1}!"
                     )
                     if attempt == max_retries - 1:
                         raise
@@ -284,7 +317,7 @@ class AWQQuantizer(BaseQuantizer):
                     old_bs = config['batch_size']
                     new_bs = max(1, old_bs // 2)
                     config['batch_size'] = new_bs
-                    self.logger.info(f"📉 Reducing batch size: {old_bs} -> {new_bs} and retrying...")
+                    self.logger.info(f"Reducing batch size: {old_bs} -> {new_bs} and retrying...")
                 else:
                     raise
         
@@ -299,14 +332,11 @@ class AWQQuantizer(BaseQuantizer):
         compression_ratio = initial_size_mb / final_size_mb if final_size_mb > 0 else 0
         size_drop = (1 - (final_size_mb / initial_size_mb)) * 100 if initial_size_mb > 0 else 0
         
-        self.logger.info("-" * 40)
-        self.logger.info("📊 QUANTIZATION STATISTICS")
-        self.logger.info("-" * 40)
+        self.logger.info("QUANTIZATION STATISTICS")
         self.logger.info(f"Original Size:     {initial_size_mb:.2f} MB")
         self.logger.info(f"Quantized Size:    {final_size_mb:.2f} MB")
         self.logger.info(f"Compression Ratio: {compression_ratio:.2f}x")
         self.logger.info(f"Size Reduction:    {size_drop:.2f}%")
-        self.logger.info("-" * 40)
         
         self._report_progress(95, "complete", "Quantization complete")
     

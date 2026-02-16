@@ -97,19 +97,43 @@ quantizer.quantize(format="float16")  # Recommended for best compatibility
 - `float16`: Universal compatibility
 - `int4`: Maximum compression (iOS 18+)
 
-## Progress Tracking
+## Advanced Usage
+
+### Batch Processing
+
+Quantize multiple models in a loop:
 
 ```python
-def progress_handler(percent, stage, message):
-    print(f"[{percent}%] {stage}: {message}")
+from qwodel import Time, Quantizer
+
+models = ["meta-llama/Llama-2-7b-hf", "meta-llama/Llama-2-13b-hf"]
+
+for model_path in models:
+    print(f"Quantizing {model_path}...")
+    try:
+        quantizer = Quantizer(backend="gguf", model_path=model_path, output_dir="./quantized")
+        output = quantizer.quantize(format="Q4_K_M")
+        print(f"Success: {output}")
+    except Exception as e:
+        print(f"Failed: {e}")
+```
+
+### Custom Progress Callback
+
+Track quantization progress with a custom handler:
+
+```python
+def custom_progress(percent: int, stage: str, message: str = ""):
+    bar_length = 20
+    filled = int(bar_length * percent / 100)
+    bar = "█" * filled + "░" * (bar_length - filled)
+    print(f"\r[{bar}] {percent}% | {stage} - {message}", end="", flush=True)
 
 quantizer = Quantizer(
-    backend="gguf",
-    model_path="./model",
-    output_dir="./output",
-    progress_callback=progress_handler
+    backend="gguf", 
+    model_path="./model", 
+    progress_callback=custom_progress
 )
-
 quantizer.quantize(format="Q4_K_M")
 ```
 
