@@ -8,12 +8,12 @@
 
 ## Features
 
-- 🎯 **Unified API** - Simple interface across all quantization backends
-- 🔧 **Multiple Backends** - AWQ (GPU), GGUF (CPU), CoreML (Apple devices)
-- 📦 **Optional Dependencies** - Install only what you need
-- 🚀 **CLI & Python API** - Use via command line or programmatically
-- ✅ **Type Safe** - Full type hints and mypy validation
-- 📚 **Well Documented** - Comprehensive docs with examples
+- **Unified API** - Simple interface across all quantization backends
+- **Multiple Backends** - AWQ (GPU), GGUF (CPU), CoreML (Apple devices)
+- **Optional Dependencies** - Install only what you need
+- **CLI & Python API** - Use via command line or programmatically
+- **Type Safe** - Full type hints and mypy validation
+- **Well Documented** - Comprehensive docs with examples
 
 ## Quick Start
 

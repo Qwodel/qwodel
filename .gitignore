@@ -140,3 +140,4 @@ quantized_output/
 *.gguf
 *.mlpackage
 *.mlmodel
+awq_test.py

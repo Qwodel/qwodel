@@ -160,3 +160,41 @@ HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
 HTTP_INTERNAL_SERVER_ERROR = 500
 HTTP_SERVICE_UNAVAILABLE = 503
+
+
+# Calibration Defaults
+DEFAULT_CALIBRATION_DATASET = "wikitext-2-raw-v1"
+DEFAULT_CALIBRATION_SPLIT = "train"
+
+
+# Unsupported Architectures for Quantization
+# Consolidated list for AWQ and GGUF which generally support similar CausalLM models
+UNSUPPORTED_ARCHITECTURES = [
+    "XLMRobertaForTokenClassification",
+    "BertForTokenClassification",
+    "RobertaForTokenClassification",
+    "DistilBertForTokenClassification",
+    "MobileBertForTokenClassification",
+    "BertForMaskedLM",
+    "RobertaForMaskedLM",
+]
+
+
+# AWQ Specific Constants
+AWQ_DEFAULT_IGNORE_MAP = {
+    "qwen2": ["lm_head", "re:.*mlp.gate$"],
+    "llama": ["lm_head", "re:.*down_proj$"],
+    "mistral": ["lm_head", "re:.*gate_proj$"],
+    "default": ["lm_head"]
+}
+
+
+# GGUF Specific Constants
+GGUF_CONVERSION_SCRIPT = "convert_hf_to_gguf.py"
+GGUF_BINARY_NAME = "llama-quantize"
+
+
+# CoreML Specific Constants
+COREML_INPUT_NAME = "input_ids"
+COREML_MASK_NAME = "attention_mask"
+COREML_OUTPUT_NAME = "output"

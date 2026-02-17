@@ -3,15 +3,14 @@ requires = ["setuptools>=65", "wheel", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "qwodel"
-dynamic = ["version"]
+name = "Qwodel"
+version = "Alpha"
 description = "Production-grade model quantization SDK for enterprise custom models (AWQ, GGUF, and CoreML)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "Suhas"},
-    {name = "Qwodel Contributors"}
+    {name = "Qwodel"}
 ]
 maintainers = [
     {name = "Qwodel Contributors"}
@@ -62,7 +61,9 @@ awq = [
     "llmcompressor>=0.2.0",
     "accelerate>=0.25.0",
     "optimum>=1.16.0",
-    "datasets>=2.14.0",
+    "datasets>=4.5.0",
+    "zstandard>=0.25.0",
+
 ]
 
 # GGUF backend - CPU quantization using llama.cpp

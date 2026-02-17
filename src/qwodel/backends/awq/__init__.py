@@ -6,14 +6,19 @@ Supports GPU-based INT4 quantization with smart VRAM management.
 """
 
 import os
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-
 from typing import Dict, List, Optional
 from pathlib import Path
 import torch
 
 from qwodel.core.base import BaseQuantizer
-from qwodel.core.constants import ModelFormat, AWQFormat
+from qwodel.core.constants import (
+    ModelFormat, 
+    AWQFormat,
+    DEFAULT_CALIBRATION_DATASET,
+    DEFAULT_CALIBRATION_SPLIT,
+    UNSUPPORTED_ARCHITECTURES,
+    AWQ_DEFAULT_IGNORE_MAP
+)
 from qwodel.core.exceptions import (
     QuantizationError,
     ValidationError,
@@ -21,71 +26,35 @@ from qwodel.core.exceptions import (
     FormatNotSupportedError,
 )
 
-# Try to import AWQ dependencies
-_AWQ_AVAILABLE = False
-_AWQ_IMPORT_ERROR = None
-
+# Optional imports for AWQ
 try:
     from transformers import AutoModelForCausalLM, AutoTokenizer
     from llmcompressor.modifiers.awq import AWQModifier
     from llmcompressor import oneshot
     from datasets import load_dataset
     _AWQ_AVAILABLE = True
-except ImportError as e:
-    _AWQ_IMPORT_ERROR = str(e)
+except ImportError:
+    _AWQ_AVAILABLE = False
 
 
 class AWQQuantizer(BaseQuantizer):
     """
     AWQ quantization backend using llm-compressor.
-    
     Supports INT4 quantization for Causal LM models on NVIDIA GPUs.
-    Includes smart VRAM management and OOM recovery.
-    
-    Examples:
-        >>> quantizer = AWQQuantizer(
-        ...     model_path="meta-llama/Llama-2-7b-hf",
-        ...     output_dir="./output"
-        ... )
-        >>> output = quantizer.quantize(format="int4")
     """
-    
-    # Unsupported architectures for AWQ
-    _unsupported_architectures = [
-        "XLMRobertaForTokenClassification",
-        "BertForTokenClassification",
-        "RobertaForTokenClassification",
-        "DistilBertForTokenClassification",
-        "MobileBertForTokenClassification",
-        "BertForMaskedLM",
-        "RobertaForMaskedLM",
-        # AWQ expects CausalLM models
-    ]
     
     def __init__(
         self,
         model_path: str,
         output_dir: str = "./quantized_models",
         progress_callback: Optional = None,
-        calibration_dataset: str = "mit-han-lab/pile-val-backup",
-        calibration_split: str = "validation",
+        calibration_dataset: str = DEFAULT_CALIBRATION_DATASET,
+        calibration_split: str = DEFAULT_CALIBRATION_SPLIT,
         batch_size: Optional[int] = None,
         seq_length: Optional[int] = None,
         num_samples: Optional[int] = None
     ):
-        """
-        Initialize AWQ quantizer.
-        
-        Args:
-            model_path: Path to source model (HuggingFace directory)
-            output_dir: Output directory for quantized models
-            progress_callback: Optional callback(progress: int, stage: str, message: str)
-            calibration_dataset: HuggingFace dataset ID for calibration
-            calibration_split: Dataset split to use (e.g., "train", "validation")
-            batch_size: Manual batch size (overrides smart config)
-            seq_length: Manual sequence length (overrides smart config)
-            num_samples: Manual number of calibration samples (overrides smart config)
-        """
+        super().__init__(model_path, output_dir, progress_callback)
         self.calibration_dataset = calibration_dataset
         self.calibration_split = calibration_split
         self.manual_config = {
@@ -94,195 +63,114 @@ class AWQQuantizer(BaseQuantizer):
             "samples": num_samples
         }
         self._current_format = None
-        super().__init__(model_path, output_dir, progress_callback)
     
     @property
     def unsupported_architectures(self) -> List[str]:
-        """List of architectures unsupported by AWQ."""
-        return self._unsupported_architectures
+        return UNSUPPORTED_ARCHITECTURES
     
     @classmethod
     def get_backend_name(cls) -> str:
-        """Get backend name."""
         return "awq"
     
     @classmethod
     def get_supported_input_formats(cls) -> List[ModelFormat]:
-        """Get supported input formats."""
         return [ModelFormat.HUGGINGFACE, ModelFormat.PYTORCH]
     
     @classmethod
     def list_formats(cls) -> Dict[str, str]:
-        """
-        List available AWQ quantization formats.
-        
-        Returns:
-            Dictionary mapping format names to descriptions
-        """
         return {
-            AWQFormat.INT4.value: "4-bit weight quantization with activation awareness (W4A16 scheme)"
+            AWQFormat.INT4.value: "4-bit weight quantization (W4A16)"
         }
     
     def _validate_backend_compatibility(self) -> None:
-        """Validate input format compatibility."""
         if self.input_format not in self.get_supported_input_formats():
-            raise ValidationError(
-                f"AWQ backend requires HuggingFace/PyTorch model, "
-                f"got {self.input_format.value}"
-            )
+            raise ValidationError(f"AWQ backend requires HuggingFace/PyTorch model, got {self.input_format.value}")
     
     def _check_dependencies(self) -> None:
-        """Check if AWQ dependencies are available."""
         if not _AWQ_AVAILABLE:
-            raise DependencyError(
-                f"AWQ dependencies not available. Install with: pip install qwodel[awq]\n"
-                f"Error: {_AWQ_IMPORT_ERROR}"
-            )
+            raise DependencyError("AWQ dependencies not available. Install with: pip install qwodel[awq]")
         
         if not torch.cuda.is_available():
             self.logger.warning("CUDA not available. AWQ quantization requires GPU.")
-            # Don't raise error to allow dry-run, but it will likely fail later
     
-    def _get_model_params_gb(self) -> float:
-        """Estimate model size in parameters (billions)."""
-        try:
-            # Calculate from file size
-            total_size = sum(f.stat().st_size for f in self.model_path.glob("*.safetensors"))
-            if total_size == 0:
-                total_size = sum(f.stat().st_size for f in self.model_path.glob("*.bin"))
-            
-            size_gb = total_size / (1024**3)
-            # Assuming FP16 (2 bytes per param), params = size / 2
-            return size_gb / 2.0
-        except Exception:
-            return 7.0  # Default fallback
-    
-    def _get_gpu_vram_gb(self) -> float:
-        """Get total GPU VRAM in GB."""
+    def _get_ignore_list(self, model_config):
+        return AWQ_DEFAULT_IGNORE_MAP.get(model_config.model_type, AWQ_DEFAULT_IGNORE_MAP["default"])
+
+    def _get_model_size_gb(self) -> float:
+        """Estimate model size in GB."""
+        files = list(self.model_path.glob("*.safetensors")) or list(self.model_path.glob("*.bin"))
+        total_bytes = sum(f.stat().st_size for f in files)
+        return total_bytes / (1024**3)
+
+    def _calculate_config(self) -> Dict[str, int]:
+        """Calculate quantization parameters based on available VRAM."""
+        # Defaults
+        config = {"batch_size": 8, "seq_len": 4096, "samples": 128}
+
         if torch.cuda.is_available():
-            return torch.cuda.get_device_properties(0).total_memory / (1024**3)
-        return 0.0
-    
-    def _calculate_smart_config(self) -> Dict[str, int]:
-        """
-        Calculate dynamic quantization parameters based on available VRAM.
-        
-        Formula: Empty_VRAM = GPU_Total_VRAM - (Model_Params * 4.0)
-        
-        Returns:
-            Dictionary with batch_size, seq_len, and samples
-        """
-        total_vram = self._get_gpu_vram_gb()
-        model_params = self._get_model_params_gb()
-        
-        # 4.0 factor accounts for model weights + overhead + fragmentation
-        empty_vram = total_vram - (model_params * 4.0)
-        
-        self.logger.info(
-            f"Smart Config: Total VRAM={total_vram:.2f}GB, "
-            f"Model~={model_params:.2f}B, Empty={empty_vram:.2f}GB"
-        )
-        
-        if empty_vram < 6.0:
-            # Slow & Safe
-            config = {"batch_size": 1, "seq_len": 2048, "samples": 32}
-            mode = "Slow & Safe"
-        elif 6.0 <= empty_vram < 10.0:
-            # Standard
-            config = {"batch_size": 1, "seq_len": 4096, "samples": 64}
-            mode = "Standard"
-        elif 10.0 <= empty_vram < 16.0:
-            # Balanced
-            config = {"batch_size": 4, "seq_len": 4096, "samples": 128}
-            mode = "Balanced"
-        elif 16.0 <= empty_vram < 24.0:
-            # High Quality
-            config = {"batch_size": 8, "seq_len": 8192, "samples": 128}
-            mode = "High Quality"
-        else:  # > 24.0
-            # Turbo
-            config = {"batch_size": 16, "seq_len": 8192, "samples": 256}
-            mode = "Turbo"
-        
-        # Apply manual overrides
-        if self.manual_config["batch_size"]:
-            config["batch_size"] = self.manual_config["batch_size"]
-            mode += " (Custom Batch)"
-        if self.manual_config["seq_len"]:
-            config["seq_len"] = self.manual_config["seq_len"]
-            mode += " (Custom SeqLen)"
-        if self.manual_config["samples"]:
-            config["samples"] = self.manual_config["samples"]
-            mode += " (Custom Samples)"
-        
-        self.logger.info(f"Selected Mode: {mode} -> {config}")
+            total_vram = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+            model_size = self._get_model_size_gb()
+            # Crude estimate: Model weights (FP16) + overhead ~ 2x model size
+            # We want to leave room for activation and batches.
+            # If we assume loading in FP16, we need strict VRAM management.
+            
+            # Simple heuristic levels based on free memory "headroom"
+            # Headroom = Total VRAM - Model Size (FP16)
+            headroom = total_vram - model_size 
+            
+            if headroom < 4.0:
+                config = {"batch_size": 1, "seq_len": 2048, "samples": 32}
+            elif headroom < 8.0:
+                config = {"batch_size": 2, "seq_len": 4096, "samples": 64}
+            elif headroom < 16.0:
+                config = {"batch_size": 4, "seq_len": 4096, "samples": 128}
+            elif headroom < 24.0:
+                config = {"batch_size": 8, "seq_len": 8192, "samples": 128}
+            else:
+                config = {"batch_size": 16, "seq_len": 8192, "samples": 256}
+                
+            self.logger.info(f"VRAM Headroom: {headroom:.2f}GB. Selected config: {config}")
+
+        # Overrides
+        for k, v in self.manual_config.items():
+            if v is not None:
+                config[k] = v
+                
         return config
     
-    def _get_dir_size(self, path: Path) -> float:
-        """Calculate total size of a directory in MB."""
-        total_size = 0
-        path = Path(path)
-        if path.is_file():
-            total_size = path.stat().st_size
-        else:
-            for f in path.glob('**/*'):
-                if f.is_file():
-                    total_size += f.stat().st_size
-        return total_size / (1024 * 1024)
-    
     def _run_quantization(self) -> None:
-        """Execute AWQ quantization using llm-compressor."""
-        # Calculate smart config
-        config = self._calculate_smart_config()
+        config = self._calculate_config()
         
-        self._report_progress(15, "loading", "Loading model for quantization")
-        self.logger.info("Loading model for quantization...")
-        
-        # Load model
+        self._report_progress(10, "loading", "Loading model")
         model = AutoModelForCausalLM.from_pretrained(
             str(self.model_path),
             device_map="auto",
             trust_remote_code=True,
             low_cpu_mem_usage=True,
         )
-        tokenizer = AutoTokenizer.from_pretrained(
-            str(self.model_path),
-            trust_remote_code=True
-        )
+        tokenizer = AutoTokenizer.from_pretrained(str(self.model_path), trust_remote_code=True)
         
-        # Load calibration dataset
-        self._report_progress(25, "preparing", "Loading calibration dataset")
-        self.logger.info(f"Loading calibration dataset: {self.calibration_dataset} ({self.calibration_split})...")
+        self._report_progress(20, "preparing", "Loading dataset")
         try:
             dataset = load_dataset(self.calibration_dataset, split=self.calibration_split)
         except Exception as e:
-            raise QuantizationError(f"Failed to load calibration dataset '{self.calibration_dataset}': {e}")
+            raise QuantizationError(f"Failed to load dataset '{self.calibration_dataset}': {e}")
         
-        # Define AWQ recipe
         recipe = [
             AWQModifier(
                 targets=["Linear"],
-                ignore=["lm_head"],
+                ignore=self._get_ignore_list(model.config),
                 scheme="W4A16"
             )
         ]
         
-        # Measure initial size
-        initial_size_mb = self._get_dir_size(self.model_path)
-        self.logger.info(f"Initial Model Size: {initial_size_mb:.2f} MB")
+        self._report_progress(30, "quantizing", "Running AWQ")
         
-        # OOM Recovery Loop
+        # Simple retry loop for OOM
         max_retries = 3
-        self._report_progress(40, "quantizing", "Running AWQ quantization")
-        
-        for attempt in range(max_retries):
+        for i in range(max_retries):
             try:
-                self.logger.info(
-                    f"Starting one-shot quantization (Attempt {attempt+1}/{max_retries}) "
-                    f"with batch_size={config['batch_size']}..."
-                )
-                
-                # Run quantization
+                self.logger.info(f"Starting quantization (Attempt {i+1}/{max_retries}) bs={config['batch_size']}")
                 oneshot(
                     model=model,
                     dataset=dataset,
@@ -290,93 +178,33 @@ class AWQQuantizer(BaseQuantizer):
                     num_calibration_samples=config['samples'],
                     max_seq_length=config['seq_len']
                 )
-                break  # Success!
-                
-            except torch.cuda.OutOfMemoryError:
-                self.logger.warning(f"⚠️ CUDA OOM detected on attempt {attempt+1}!")
-                if attempt == max_retries - 1:
-                    self.logger.error("❌ Max retries reached. Failing job.")
-                    raise
-                
-                # Recovery strategy
-                torch.cuda.empty_cache()
-                old_bs = config['batch_size']
-                new_bs = max(1, old_bs // 2)
-                config['batch_size'] = new_bs
-                self.logger.info(f"Reducing batch size: {old_bs} -> {new_bs} and retrying...")
-                
+                break
             except Exception as e:
-                # Check for OOM in generic exception message
-                if "out of memory" in str(e).lower():
-                    self.logger.warning(
-                        f"CUDA OOM detected (via generic exception) on attempt {attempt+1}!"
-                    )
-                    if attempt == max_retries - 1:
-                        raise
+                is_oom = "out of memory" in str(e).lower() or isinstance(e, torch.cuda.OutOfMemoryError)
+                if is_oom and i < max_retries - 1:
                     torch.cuda.empty_cache()
-                    old_bs = config['batch_size']
-                    new_bs = max(1, old_bs // 2)
-                    config['batch_size'] = new_bs
-                    self.logger.info(f"Reducing batch size: {old_bs} -> {new_bs} and retrying...")
+                    config['batch_size'] = max(1, config['batch_size'] // 2)
+                    self.logger.warning(f"OOM detected. Retrying with batch_size={config['batch_size']}")
                 else:
-                    raise
+                    raise e
         
-        # Save quantized model
-        self._report_progress(85, "saving", "Saving quantized model")
-        self.logger.info("Saving quantized model...")
+        self._report_progress(90, "saving", "Saving model")
         model.save_pretrained(str(self.output_dir))
         tokenizer.save_pretrained(str(self.output_dir))
-        
-        # Calculate statistics
-        final_size_mb = self._get_dir_size(self.output_dir)
-        compression_ratio = initial_size_mb / final_size_mb if final_size_mb > 0 else 0
-        size_drop = (1 - (final_size_mb / initial_size_mb)) * 100 if initial_size_mb > 0 else 0
-        
-        self.logger.info("QUANTIZATION STATISTICS")
-        self.logger.info(f"Original Size:     {initial_size_mb:.2f} MB")
-        self.logger.info(f"Quantized Size:    {final_size_mb:.2f} MB")
-        self.logger.info(f"Compression Ratio: {compression_ratio:.2f}x")
-        self.logger.info(f"Size Reduction:    {size_drop:.2f}%")
-        
-        self._report_progress(95, "complete", "Quantization complete")
-    
+        self._report_progress(100, "complete", "Done")
+
     def quantize(self, format: str, **kwargs) -> Path:
-        """
-        Quantize model to specified AWQ format.
+        format_upper = format.upper().replace('-', '_')
+        if format_upper not in AWQFormat.__members__:
+             raise FormatNotSupportedError(f"Format '{format}' not supported. Use: {list(self.list_formats().keys())}")
         
-        Args:
-            format: AWQ format name (currently only "int4" supported)
-            **kwargs: Additional arguments (unused for AWQ)
-            
-        Returns:
-            Path to quantized model directory
-            
-        Raises:
-            FormatNotSupportedError: If format is not supported
-            QuantizationError: If quantization fails
-        """
-        # Validate format
-        format_lower = format.lower()
-        try:
-            awq_format = AWQFormat[format_lower.upper().replace('-', '_')]
-        except KeyError:
-            available = [f.value for f in AWQFormat]
-            raise FormatNotSupportedError(
-                f"Format '{format}' not supported by AWQ backend. "
-                f"Available formats: {available}"
-            )
-        
-        # Store format
-        self._current_format = awq_format.value
-        
-        # Call parent quantize
+        self._current_format = AWQFormat[format_upper].value
         return super().quantize(format=format, **kwargs)
-    
+
     def get_output_path(self) -> Path:
-        """Get output path for quantized model (directory)."""
         return self.output_dir
 
 
-# Register AWQ backend
+# Register backend
 from qwodel.backends import BackendRegistry
 BackendRegistry.register("awq", AWQQuantizer)
