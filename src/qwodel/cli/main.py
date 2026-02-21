@@ -206,5 +206,90 @@ def list_backends():
     console.print(f"\nTotal: [yellow]{len(backends)}[/yellow] backends\n")
 
 
+# Dependency probes for each backend — (package_to_import, display_name)
+_BACKEND_DEPS = {
+    "gguf": [
+        ("torch", "torch"),
+        ("llama_cpp", "llama-cpp-python"),
+    ],
+    "awq": [
+        ("torch", "torch"),
+        ("llmcompressor", "llmcompressor"),
+        ("accelerate", "accelerate"),
+    ],
+    "coreml": [
+        ("coremltools", "coremltools"),
+    ],
+}
+
+
+def _probe_package(import_name: str) -> tuple[bool, str]:
+    """Try importing a package; return (ok, version_string)."""
+    import importlib
+    try:
+        mod = importlib.import_module(import_name)
+        version = getattr(mod, "__version__", "installed")
+        return True, version
+    except ImportError:
+        return False, ""
+
+
+@cli.command("check")
+def check():
+    """
+    Check backend dependency availability.
+
+    Probes optional dependencies for each backend and prints a status
+    table.  Exits 0 regardless — this command is informational only.
+
+    Example:
+
+        qwodel check
+    """
+    console.print(f"\n[bold cyan]Qwodel v{__version__}[/bold cyan] — Dependency Check\n")
+
+    table = Table(show_header=True, header_style="bold magenta", box=None)
+    table.add_column("Backend", style="yellow", width=10)
+    table.add_column("Status", width=12)
+    table.add_column("Notes", style="dim")
+
+    ready_count = 0
+    missing_backends: list[str] = []
+
+    for backend_name, deps in _BACKEND_DEPS.items():
+        missing_pkgs: list[str] = []
+        note_parts: list[str] = []
+
+        for import_name, display_name in deps:
+            ok, version = _probe_package(import_name)
+            if ok:
+                note_parts.append(f"{display_name} {version}")
+            else:
+                missing_pkgs.append(display_name)
+
+        if not missing_pkgs:
+            status = "[bold green]✓ ready[/bold green]"
+            notes = ", ".join(note_parts)
+            ready_count += 1
+        else:
+            status = "[bold red]✗ missing[/bold red]"
+            notes = f"{', '.join(missing_pkgs)} not installed"
+            missing_backends.append(backend_name)
+
+        table.add_row(backend_name, status, notes)
+
+    console.print(table)
+
+    total = len(_BACKEND_DEPS)
+    console.print(f"\n[bold]{ready_count} of {total}[/bold] backends available.")
+
+    if missing_backends:
+        console.print("\nTo enable missing backends:")
+        for b in missing_backends:
+            console.print(f"  [yellow]pip install qwodel\\[{b}\\][/yellow]")
+    console.print()
+
+
 if __name__ == "__main__":
     cli()
+

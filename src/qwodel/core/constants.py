@@ -163,7 +163,7 @@ HTTP_SERVICE_UNAVAILABLE = 503
 
 
 # Calibration Defaults
-DEFAULT_CALIBRATION_DATASET = "wikitext-2-raw-v1"
+DEFAULT_CALIBRATION_DATASET = "wikitext:wikitext-2-raw-v1"
 DEFAULT_CALIBRATION_SPLIT = "train"
 
 
@@ -185,6 +185,12 @@ AWQ_DEFAULT_IGNORE_MAP = {
     "qwen2": ["lm_head", "re:.*mlp.gate$"],
     "llama": ["lm_head", "re:.*down_proj$"],
     "mistral": ["lm_head", "re:.*gate_proj$"],
+    "gemma": [
+        "lm_head", 
+        "re:.*down_proj$", 
+        "re:.*multi_modal_projector.*", 
+        "re:.*vision_tower.*"
+    ],
     "default": ["lm_head"]
 }
 

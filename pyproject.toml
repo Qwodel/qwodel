@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Qwodel"
-version = "Alpha"
+version = "0.0.12"
 description = "Production-grade model quantization SDK for enterprise custom models (AWQ, GGUF, and CoreML)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -41,7 +41,7 @@ classifiers = [
 
 # Minimal base dependencies - NO PyTorch, NO heavy ML libs
 dependencies = [
-    "transformers>=4.48.0",
+    "transformers>=4.51.3",
     "huggingface_hub>=0.20.0",
     "safetensors>=0.4.0",
     "numpy>=1.24.0,<2.0",
@@ -55,9 +55,9 @@ dependencies = [
 [project.optional-dependencies]
 # AWQ backend - GPU quantization (install PyTorch with CUDA separately)
 awq = [
-    "torch>=2.4.0",
-    "torchvision>=0.19.0",
-    "torchaudio>=2.4.0",
+    "torch>=2.10.0",
+    "torchvision>=0.25.0",
+    "torchaudio>=2.10.0",
     "llmcompressor>=0.2.0",
     "accelerate>=0.25.0",
     "optimum>=1.16.0",
@@ -68,18 +68,18 @@ awq = [
 
 # GGUF backend - CPU quantization using llama.cpp
 gguf = [
-    "torch>=2.4.0",
-    "torchvision>=0.19.0",
-    "torchaudio>=2.4.0",
+    "torch>=2.10.0",
+    "torchvision>=0.25.0",
+    "torchaudio>=2.10.0",
     "gguf>=0.12.0",
     "llama-cpp-python>=0.2.23",
 ]
 
 # CoreML backend - Apple devices (compatible with same PyTorch version)
 coreml = [
-    "torch>=2.4.0",
-    "torchvision>=0.19.0",
-    "torchaudio>=2.4.0",
+    "torch>=2.10.0",
+    "torchvision>=0.25.0",
+    "torchaudio>=2.10.0",
     "coremltools>=8.0.0",
 ]
 

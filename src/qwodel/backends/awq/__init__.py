@@ -52,7 +52,8 @@ class AWQQuantizer(BaseQuantizer):
         calibration_split: str = DEFAULT_CALIBRATION_SPLIT,
         batch_size: Optional[int] = None,
         seq_length: Optional[int] = None,
-        num_samples: Optional[int] = None
+        num_samples: Optional[int] = None,
+        **kwargs
     ):
         super().__init__(model_path, output_dir, progress_callback)
         self.calibration_dataset = calibration_dataset
@@ -60,8 +61,10 @@ class AWQQuantizer(BaseQuantizer):
         self.manual_config = {
             "batch_size": batch_size,
             "seq_len": seq_length,
-            "samples": num_samples
+            "samples": num_samples,
+            **kwargs
         }
+        self.token = kwargs.get('token')
         self._current_format = None
     
     @property
@@ -138,6 +141,40 @@ class AWQQuantizer(BaseQuantizer):
                 
         return config
     
+    def _load_calibration_dataset(self):
+        """
+        Load calibration dataset with support for:
+        1. Local files (json, jsonl, txt)
+        2. HuggingFace datasets with subsets (repo:subset)
+        3. Standard HuggingFace datasets
+        """
+        dataset_path = self.calibration_dataset
+        
+        # 1. Check for local file
+        if os.path.isfile(dataset_path):
+            self.logger.info(f"Loading local calibration dataset: {dataset_path}")
+            ext = Path(dataset_path).suffix.lower()
+            if ext in ['.json', '.jsonl']:
+                # For JSONL, we usually want the 'train' split. 
+                # load_dataset("json", ...) returns a DatasetDict usually.
+                return load_dataset("json", data_files=dataset_path, split=self.calibration_split)
+            elif ext in ['.txt']:
+                return load_dataset("text", data_files=dataset_path, split=self.calibration_split)
+            else:
+                # Fallback for other types if supported by generic load_dataset, or fail
+                pass
+
+        # 2. Check for subset syntax (repo:subset)
+        subset = None
+        if ":" in dataset_path:
+            dataset_path, subset = dataset_path.split(":", 1)
+        elif "," in dataset_path:
+            # Support comma as fallback/alternative separator
+            dataset_path, subset = dataset_path.split(",", 1)
+            
+        self.logger.info(f"Loading HF dataset: {dataset_path} (subset={subset}, split={self.calibration_split})")
+        return load_dataset(dataset_path, subset, split=self.calibration_split)
+
     def _run_quantization(self) -> None:
         config = self._calculate_config()
         
@@ -147,19 +184,27 @@ class AWQQuantizer(BaseQuantizer):
             device_map="auto",
             trust_remote_code=True,
             low_cpu_mem_usage=True,
+            token=self.token,
         )
-        tokenizer = AutoTokenizer.from_pretrained(str(self.model_path), trust_remote_code=True)
+        tokenizer = AutoTokenizer.from_pretrained(str(self.model_path), trust_remote_code=True, token=self.token)
         
         self._report_progress(20, "preparing", "Loading dataset")
         try:
-            dataset = load_dataset(self.calibration_dataset, split=self.calibration_split)
+            dataset = self._load_calibration_dataset()
         except Exception as e:
             raise QuantizationError(f"Failed to load dataset '{self.calibration_dataset}': {e}")
         
+        # Determine ignore list: User override > Default map
+        if "ignore" in self.manual_config:
+            ignore_list = self.manual_config["ignore"]
+            self.logger.info(f"Using manual ignore list: {ignore_list}")
+        else:
+            ignore_list = self._get_ignore_list(model.config)
+
         recipe = [
             AWQModifier(
                 targets=["Linear"],
-                ignore=self._get_ignore_list(model.config),
+                ignore=ignore_list,
                 scheme="W4A16"
             )
         ]
@@ -167,10 +212,11 @@ class AWQQuantizer(BaseQuantizer):
         self._report_progress(30, "quantizing", "Running AWQ")
         
         # Simple retry loop for OOM
-        max_retries = 3
+        max_retries = 5
+        import gc
         for i in range(max_retries):
             try:
-                self.logger.info(f"Starting quantization (Attempt {i+1}/{max_retries}) bs={config['batch_size']}")
+                self.logger.info(f"Starting quantization (Attempt {i+1}/{max_retries}) bs={config['batch_size']}, seq_len={config['seq_len']}")
                 oneshot(
                     model=model,
                     dataset=dataset,
@@ -180,11 +226,24 @@ class AWQQuantizer(BaseQuantizer):
                 )
                 break
             except Exception as e:
+                # Check for OOM or related runtime errors from llmcompressor/torch
                 is_oom = "out of memory" in str(e).lower() or isinstance(e, torch.cuda.OutOfMemoryError)
+                
                 if is_oom and i < max_retries - 1:
+                    # Clear cache
                     torch.cuda.empty_cache()
-                    config['batch_size'] = max(1, config['batch_size'] // 2)
-                    self.logger.warning(f"OOM detected. Retrying with batch_size={config['batch_size']}")
+                    gc.collect()
+                    
+                    # Strategy: Reduce Batch Size first, then Sequence Length
+                    if config['batch_size'] > 1:
+                        config['batch_size'] //= 2
+                        self.logger.warning(f"OOM detected. Reducing batch size to {config['batch_size']}")
+                    elif config['seq_len'] > 128:
+                        config['seq_len'] //= 2
+                        self.logger.warning(f"OOM detected. Batch size is 1. Reducing sequence length to {config['seq_len']}")
+                    else:
+                        self.logger.error("OOM detected but cannot reduce parameters further.")
+                        raise e
                 else:
                     raise e
         
@@ -198,6 +257,15 @@ class AWQQuantizer(BaseQuantizer):
         if format_upper not in AWQFormat.__members__:
              raise FormatNotSupportedError(f"Format '{format}' not supported. Use: {list(self.list_formats().keys())}")
         
+        # Support runtime config overrides
+        for key in ['batch_size', 'seq_len', 'samples', 'num_samples', 'ignore']:
+            if key in kwargs:
+                # Map num_samples to internal 'samples' key
+                target_key = 'samples' if key == 'num_samples' else key
+                if kwargs[key] is not None:
+                    self.manual_config[target_key] = kwargs[key]
+                    self.logger.info(f"Overriding config: {target_key}={kwargs[key]}")
+
         self._current_format = AWQFormat[format_upper].value
         return super().quantize(format=format, **kwargs)
 
