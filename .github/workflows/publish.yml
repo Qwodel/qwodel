@@ -5,6 +5,7 @@ on:
   push:
     tags:
       - 'v*' # Wakes up ONLY when a tag like v1.0.0, v2.1.0, etc., is pushed
+  workflow_dispatch:
 
 jobs:
   build-and-publish:
