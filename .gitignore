@@ -141,3 +141,4 @@ quantized_output/
 *.mlpackage
 *.mlmodel
 awq_test.py
+docs/

@@ -1,23 +1,59 @@
-name: Schematic Version Release
+name: Release and Publish
+
 on:
   push:
     branches:
       - main
-      
+  workflow_dispatch:
+
 jobs:
- release:
+  release:
     name: Bump Version and Tag
     runs-on: ubuntu-latest
-    
     permissions:
-      contents: write 
+      contents: write
+    outputs:
+      released: ${{ steps.semantic.outputs.released }}  # "true" or "false"
+      tag:      ${{ steps.semantic.outputs.tag }}       # e.g. "v1.2.3"
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0        # Full history needed for PSR to analyze commits
+
       - name: Python Semantic Release
+        id: semantic            # <-- id is required to capture outputs
         uses: python-semantic-release/python-semantic-release@v8.3.0
         with:
           github_token: ${{ secrets.GH_PAT }}
+
+  publish:
+    name: Build and Publish to PyPI
+    needs: release
+    if: needs.release.outputs.released == 'true'   # Skip if no version bump
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Release Tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.tag }}     # Checkout v1.2.3, NOT main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Build Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+
+      - name: Build Package
+        run: python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}

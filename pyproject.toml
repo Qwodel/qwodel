@@ -8,7 +8,7 @@ version = "0.0.13"
 description = "Production-grade model quantization SDK for enterprise custom models (AWQ, GGUF, and CoreML)"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = {text = "Qwodel Community License v1.0"}
 authors = [
     {name = "Qwodel"}
 ]
@@ -34,7 +34,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "License :: OSI Approved :: MIT License",
+    "License :: Other/Proprietary License",
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]

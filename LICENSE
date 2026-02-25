@@ -1,21 +1,77 @@
-MIT License
+Qwodel Community License v1.0
+Copyright (c) 2026 Qwodel
 
-Copyright (c) 2026 Qwodel Contributors
+This software and associated documentation files (the "Software") may only be
+used, copied, modified, and distributed in accordance with the terms and
+conditions of this License.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Acceptance
+By using the Software, you agree to all of the terms and conditions below.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Copyright License
+The licensor grants you a non-exclusive, royalty-free, worldwide,
+non-transferable, non-sublicensable license to use, copy, distribute, make
+available, and prepare derivative works of the Software, in each case subject
+to the limitations and conditions below.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Patent License
+The licensor grants you a non-exclusive, royalty-free, worldwide,
+non-transferable, non-sublicensable patent license under any patent claims
+owned or controlled by the licensor that are necessarily infringed by the
+Software, to make, have made, use, sell, offer for sale, and import the
+Software, subject to the limitations and conditions below.
+
+Permitted Uses
+The following uses are explicitly permitted under this License:
+- Using the Software for internal purposes within your organization.
+- Building applications, tools, pipelines, or products that use the Software as a
+  dependency, including commercial products.
+- Distributing the Software as part of a non-hosted product (e.g. a desktop app,
+  CLI tool, or on-premises deployment).
+- Modifying the Software for your own use, subject to the Notices requirement below.
+
+Limitations
+You may not provide the Software to third parties as a hosted or managed
+service, where the service provides users with access to any substantial set of
+the features or functionality of the Software.
+
+You may not alter, remove, or obscure any licensing, copyright, or other
+notices of the licensor in the Software. Any use of the licensor's trademarks
+is subject to applicable law.
+
+Notices
+If you are modifying the Software, you must include in any modified copies a
+prominent notice stating that you have modified the Software, with a
+description of the modifications made.
+
+Termination
+Any breach of this License will automatically and immediately terminate your
+rights under this License. Upon termination, you must cease all use of the
+Software and destroy all copies in your possession or control.
+
+Governing Law
+This License is governed by the laws of India, without regard to its conflict
+of law provisions. Any disputes arising from or relating to this License shall
+be resolved exclusively in the competent courts of India.
+
+Disclaimer of Warranty
+TO THE EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS PROVIDED ON AN
+"AS IS" BASIS. LICENSOR HEREBY DISCLAIMS ALL WARRANTIES AND CONDITIONS,
+EXPRESS OR IMPLIED, INCLUDING (WITHOUT LIMITATION) WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND
+TITLE.
+
+Limitation of Liability
+TO THE EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT WILL THE LICENSOR BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+OF THE USE OF THE SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Severability
+If any provision of this License is held to be unenforceable or invalid, such
+provision will be changed and interpreted to accomplish the objectives of such
+provision to the greatest extent possible under applicable law and the
+remaining provisions will continue in full force and effect.
