@@ -135,6 +135,13 @@ qwodel = [
 write_to = "src/qwodel/__version__.py"
 version_scheme = "post-release"
 
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+version_variables = ["src/qwodel/__version__.py:__version__"]
+branch = "main"
+upload_to_pypi = false          # PyPI upload is handled by the publish job
+build_command = "pip install build && python -m build"
+
 # Ruff - Modern linter and formatter
 [tool.ruff]
 target-version = "py310"
