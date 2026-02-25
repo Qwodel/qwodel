@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.2.0 (2026-02-25)
+
+### Features
+
+- Updated Licenses
+  ([`6e47bd5`](https://github.com/Qwodel/qwodel/commit/6e47bd58a24ad445b322d59ffa2d0752f25ed055))
+
+
 ## v1.1.0 (2026-02-25)
 
 ### Features
