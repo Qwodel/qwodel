@@ -4,6 +4,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: Community](https://img.shields.io/badge/License-Qwodel%20Community%20v1.0-blue.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-docs.qwodel.com-blue.svg)](https://docs.qwodel.com/docs)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/qwodel?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/qwodel)
 
 Production-grade model quantization SDK for AWQ, GGUF, and CoreML.
 
