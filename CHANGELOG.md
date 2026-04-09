@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.4.0 (2026-04-09)
+
+### Features
+
+- Qwodel[all] package patch
+  ([`2bbf83d`](https://github.com/Qwodel/qwodel/commit/2bbf83dbadea382604d3de47ea662ebde0949578))
+
+
 ## v1.3.0 (2026-02-25)
 
 
