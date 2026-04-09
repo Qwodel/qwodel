@@ -93,15 +93,15 @@ class CoreMLQuantizer(BaseQuantizer):
         path = self.model_path.parent if self.model_path.is_file() else self.model_path
         self.logger.info(f"Loading model from {path}")
         
-        config = AutoConfig.from_pretrained(path, local_files_only=True, trust_remote_code=True)
-        model = AutoModel.from_pretrained(
-            path,
-            config=config,
+        from qwodel.core.utils import load_hf_model
+        model = load_hf_model(
+            str(path),
             local_files_only=True,
             torch_dtype=torch.float32,
             low_cpu_mem_usage=True,
             trust_remote_code=True,
-            attn_implementation="eager"
+            attn_implementation="eager",
+            default_class="AutoModel"
         )
         model.eval()
         self._pytorch_model = model
@@ -114,12 +114,19 @@ class CoreMLQuantizer(BaseQuantizer):
                 self.model = base_model
             
             def forward(self, input_ids, attention_mask):
-                return self.model(
+                outputs = self.model(
                     input_ids=input_ids,
                     attention_mask=attention_mask,
                     use_cache=False,
+                    output_hidden_states=True,
                     return_dict=True
-                ).last_hidden_state
+                )
+                if hasattr(outputs, "last_hidden_state") and outputs.last_hidden_state is not None:
+                    return outputs.last_hidden_state
+                elif hasattr(outputs, "hidden_states") and outputs.hidden_states is not None:
+                    return outputs.hidden_states[-1]
+                else:
+                    return outputs[0]
         
         return StatelessWrapper(model).eval()
     
