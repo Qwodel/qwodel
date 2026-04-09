@@ -14,7 +14,7 @@ authors = [
 ]
 maintainers = [
     {name = "Qwodel Contributors"}
-]
+] 
 keywords = [
     "quantization",
     "model-compression",
