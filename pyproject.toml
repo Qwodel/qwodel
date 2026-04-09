@@ -55,9 +55,9 @@ dependencies = [
 [project.optional-dependencies]
 # AWQ backend - GPU quantization (install PyTorch with CUDA separately)
 awq = [
-    "torch>=2.10.0",
-    "torchvision>=0.25.0",
-    "torchaudio>=2.10.0",
+    "torch>=2.1.0",
+    "torchvision>=0.16.0",
+    "torchaudio>=2.1.0",
     "llmcompressor>=0.2.0",
     "accelerate>=0.25.0",
     "optimum>=1.16.0",
@@ -68,23 +68,35 @@ awq = [
 
 # GGUF backend - CPU quantization using llama.cpp
 gguf = [
-    "torch>=2.10.0",
-    "torchvision>=0.25.0",
-    "torchaudio>=2.10.0",
+    "torch>=2.1.0",
+    "torchvision>=0.16.0",
+    "torchaudio>=2.1.0",
     "gguf>=0.12.0",
     "llama-cpp-python>=0.2.23",
 ]
 
 # CoreML backend - Apple devices (compatible with same PyTorch version)
 coreml = [
-    "torch>=2.10.0",
-    "torchvision>=0.25.0",
-    "torchaudio>=2.10.0",
+    "torch>=2.1.0",
+    "torchvision>=0.16.0",
+    "torchaudio>=2.1.0",
     "coremltools>=8.0.0",
 ]
 
 # All backends - now works without conflicts!
-all = ["qwodel[awq,gguf,coreml]"]
+all = [
+    "torch>=2.1.0",
+    "torchvision>=0.16.0",
+    "torchaudio>=2.1.0",
+    "llmcompressor>=0.2.0",
+    "accelerate>=0.25.0",
+    "optimum>=1.16.0",
+    "datasets>=4.5.0",
+    "zstandard>=0.25.0",
+    "gguf>=0.12.0",
+    "llama-cpp-python>=0.2.23",
+    "coremltools>=8.0.0",
+]
 
 # Development dependencies
 dev = [

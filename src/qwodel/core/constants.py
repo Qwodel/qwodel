@@ -204,3 +204,44 @@ GGUF_BINARY_NAME = "llama-quantize"
 COREML_INPUT_NAME = "input_ids"
 COREML_MASK_NAME = "attention_mask"
 COREML_OUTPUT_NAME = "output"
+
+
+# Model Type Classifications
+VISION_ENCODER_TYPES = {
+    "vit", "dinov2", "pvt_v2", "swin", "swinv2", "convnext",
+    "efficientnet", "resnet", "deit", "beit", "beitv2",
+    "clip_vision_model", "siglip_vision_model", "eva", "sam",
+    "detr", "yolos", "segformer", "mask2former", "oneformer",
+}
+
+VLM_TYPES = {
+    "llava", "llava_next", "qwen2_vl", "qwen2_5_vl", "internvl",
+    "blip", "blip-2", "paligemma", "idefics", "idefics2",
+    "idefics3", "cogvlm", "mllama", "phi3_v", "moondream",
+    "instructblip", "flamingo",
+}
+
+LLM_TYPES = {
+    "llama", "llama2", "mistral", "qwen2", "qwen2_moe", "gemma",
+    "gemma2", "phi", "phi3", "falcon", "gpt2", "gpt_neox",
+    "opt", "bloom", "mpt", "starcoder2", "deepseek_v2",
+}
+
+ENCODER_LM_TYPES = {
+    "bert", "roberta", "albert", "distilbert", "deberta",
+    "deberta-v2", "electra", "camembert", "xlm-roberta",
+}
+
+SEQ2SEQ_TYPES = {
+    "t5", "bart", "pegasus", "marian", "mt5", "flan-t5",
+    "longt5", "led",
+}
+
+# AutoModel Mapping Dictionary
+MODEL_TYPE_TO_CLASS = {}
+for _type in VISION_ENCODER_TYPES.union(ENCODER_LM_TYPES):
+    MODEL_TYPE_TO_CLASS[_type] = "AutoModel"
+for _type in VLM_TYPES.union(LLM_TYPES):
+    MODEL_TYPE_TO_CLASS[_type] = "AutoModelForCausalLM"
+for _type in SEQ2SEQ_TYPES:
+    MODEL_TYPE_TO_CLASS[_type] = "AutoModelForSeq2SeqLM"

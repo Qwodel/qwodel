@@ -179,14 +179,30 @@ class AWQQuantizer(BaseQuantizer):
         config = self._calculate_config()
         
         self._report_progress(10, "loading", "Loading model")
-        model = AutoModelForCausalLM.from_pretrained(
+        from qwodel.core.utils import load_hf_model
+        model = load_hf_model(
             str(self.model_path),
             device_map="auto",
             trust_remote_code=True,
             low_cpu_mem_usage=True,
             token=self.token,
+            default_class="AutoModelForCausalLM"
         )
-        tokenizer = AutoTokenizer.from_pretrained(str(self.model_path), trust_remote_code=True, token=self.token)
+        
+        # Safely attempt to load Tokenizer, or fallback to Processor for Vision models
+        tokenizer = None
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(str(self.model_path), trust_remote_code=True, token=self.token)
+        except Exception:
+            try:
+                from transformers import AutoProcessor
+                tokenizer = AutoProcessor.from_pretrained(str(self.model_path), trust_remote_code=True, token=self.token)
+            except Exception:
+                try:
+                    from transformers import AutoImageProcessor
+                    tokenizer = AutoImageProcessor.from_pretrained(str(self.model_path), trust_remote_code=True, token=self.token)
+                except Exception:
+                    self.logger.warning("Could not identify a Tokenizer or Processor for this model. Skipping.")
         
         self._report_progress(20, "preparing", "Loading dataset")
         try:
@@ -249,7 +265,8 @@ class AWQQuantizer(BaseQuantizer):
         
         self._report_progress(90, "saving", "Saving model")
         model.save_pretrained(str(self.output_dir))
-        tokenizer.save_pretrained(str(self.output_dir))
+        if tokenizer is not None:
+            tokenizer.save_pretrained(str(self.output_dir))
         self._report_progress(100, "complete", "Done")
 
     def quantize(self, format: str, **kwargs) -> Path:
